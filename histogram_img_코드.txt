@@ -1,0 +1,87 @@
+let img;
+let processedImg;
+
+function preload() {
+  img = loadImage("https://raw.githubusercontent.com/joincheol/histogram_img/main/dark_landscape.jpg");
+}
+
+function setup() {
+  createCanvas(800, 800);
+
+  // 원본 이미지 표현(왼쪽 첫번째 그림)
+  image(img, 0, 0, width / 3, height / 3);
+
+  // 이미지 복제
+  processedImg = img.get();
+  processedImg.loadPixels(); // 이미지의 픽셀 데이터를 사용
+
+  // 이미지를 흑백으로 변환
+  for (let x = 0; x < processedImg.width; x++) {
+    for (let y = 0; y < processedImg.height; y++) {
+      let index = (x + y * processedImg.width) * 4;
+      let r = processedImg.pixels[index];
+      let g = processedImg.pixels[index + 1];
+      let b = processedImg.pixels[index + 2];
+      let gray = (r + g + b) / 3;
+
+      processedImg.pixels[index] = gray;
+      processedImg.pixels[index + 1] = gray;
+      processedImg.pixels[index + 2] = gray;
+    }
+  }
+
+  // 흑백으로 변환된 이미지를 히스토그램을 평활화
+  let histogram = calculateHistogram(processedImg);
+  let equalizedImg = equalizeImage(processedImg, histogram);
+
+  // 히스토그램 평활화된 이미지 표현(오른쪽 그림, 2번째 결과)
+  image(equalizedImg, width / 3, 0, width / 3, height / 3);
+}
+
+function draw() {
+}
+//이미지의 히스토그램을 계산
+function calculateHistogram(inputImage) {
+  let histogram = [];
+
+  for (let i = 0; i <= 255; i++) {
+    histogram[i] = 0;
+  }
+
+  for (let x = 0; x < inputImage.width; x++) {
+    for (let y = 0; y < inputImage.height; y++) {
+      let index = (x + y * inputImage.width) * 4;
+      let gray = inputImage.pixels[index];
+      histogram[gray]++;
+    }
+  }
+
+  return histogram;
+}
+//이미지 히스토그램 평활화
+function equalizeImage(inputImage, histogram) {
+  let cumulativeDistribution = [];
+  let totalPixels = inputImage.width * inputImage.height;
+  let equalizedImage = createImage(inputImage.width, inputImage.height);
+
+  cumulativeDistribution[0] = histogram[0] / totalPixels;
+  for (let i = 1; i <= 255; i++) {
+    cumulativeDistribution[i] = cumulativeDistribution[i - 1] + histogram[i] / totalPixels;
+  }
+
+  equalizedImage.loadPixels();
+  for (let x = 0; x < inputImage.width; x++) {
+    for (let y = 0; y < inputImage.height; y++) {
+      let index = (x + y * inputImage.width) * 4;
+      let grayValue = inputImage.pixels[index];
+      let equalizedValue = floor(cumulativeDistribution[grayValue] * 255);
+      equalizedImage.pixels[index] = equalizedValue;
+      equalizedImage.pixels[index + 1] = equalizedValue;
+      equalizedImage.pixels[index + 2] = equalizedValue;
+      equalizedImage.pixels[index + 3] = 255;
+    }
+  }
+  equalizedImage.updatePixels();
+
+  return equalizedImage;
+}
